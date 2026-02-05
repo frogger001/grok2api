@@ -9,6 +9,7 @@ export interface ModelInfo {
   supported_max_output_tokens: number;
   default_top_p: number;
   is_video_model?: boolean;
+  is_image_model?: boolean;
 }
 
 export const MODEL_CONFIG: Record<string, ModelInfo> = {
@@ -101,6 +102,18 @@ export const MODEL_CONFIG: Record<string, ModelInfo> = {
     default_top_p: 0.95,
     is_video_model: true,
   },
+  "grok-imagine-visual": {
+    grok_model: ["imagine_x_1", "MODEL_MODE_FAST"],
+    rate_limit_model: "grok-3",
+    display_name: "Grok Imagine Visual (WS)",
+    description: "WebSocket-based image generation for Grok Imagine. Returns base64 images directly.",
+    raw_model_path: "xai/grok-imagine-ws",
+    default_temperature: 1.0,
+    default_max_output_tokens: 8192,
+    supported_max_output_tokens: 131072,
+    default_top_p: 0.95,
+    is_image_model: true,
+  },
 };
 
 export function isValidModel(model: string): boolean {
@@ -120,4 +133,3 @@ export function toGrokModel(model: string): { grokModel: string; mode: string; i
 export function toRateLimitModel(model: string): string {
   return MODEL_CONFIG[model]?.rate_limit_model ?? model;
 }
-

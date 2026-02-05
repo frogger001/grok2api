@@ -8,6 +8,7 @@ import { extractContent, buildConversationPayload, sendConversationRequest } fro
 import { uploadImage } from "../grok/upload";
 import { createPost } from "../grok/create";
 import { createOpenAiStreamFromGrokNdjson, parseOpenAiFromGrokNdjson } from "../grok/processor";
+import { generateImagineImages } from "../grok/imagine";
 import { addRequestLog } from "../repo/logs";
 import { applyCooldown, recordTokenFailure, selectBestToken } from "../repo/tokens";
 import type { ApiAuthInfo } from "../auth";
@@ -106,6 +107,7 @@ openAiRoutes.post("/chat/completions", async (c) => {
       model?: string;
       messages?: any[];
       stream?: boolean;
+      n?: number;
     };
 
     requestedModel = String(body.model ?? "");
@@ -135,9 +137,39 @@ openAiRoutes.post("/chat/completions", async (c) => {
       const { content, images } = extractContent(body.messages as any);
       const cfg = MODEL_CONFIG[requestedModel]!;
       const isVideoModel = Boolean(cfg.is_video_model);
+      const isImagineWs = Boolean(cfg.is_image_model);
       const imgInputs = isVideoModel && images.length > 1 ? images.slice(0, 1) : images;
 
       try {
+        if (isImagineWs) {
+          if (!content.trim()) return c.json(openAiError("Missing prompt for image generation", "missing_prompt"), 400);
+          const imagesBase64 = await generateImagineImages({
+            cookie,
+            prompt: content.trim(),
+            n: Math.min(Math.max(Number(body.n ?? 1), 1), 4),
+            timeoutMs: settingsBundle.grok.stream_total_timeout * 1000,
+          });
+
+          const created = Math.floor(Date.now() / 1000);
+          const response = {
+            created,
+            data: imagesBase64.map((img) => ({ b64_json: img })),
+          };
+
+          const duration = (Date.now() - start) / 1000;
+          await addRequestLog(c.env.DB, {
+            ip,
+            model: requestedModel,
+            duration: Number(duration.toFixed(2)),
+            status: 200,
+            key_name: keyName,
+            token_suffix: jwt.slice(-6),
+            error: "",
+          });
+
+          return c.json(response);
+        }
+
         const uploads = await mapLimit(imgInputs, 5, (u) => uploadImage(u, cookie, settingsBundle.grok));
         const imgIds = uploads.map((u) => u.fileId).filter(Boolean);
         const imgUris = uploads.map((u) => u.fileUri).filter(Boolean);

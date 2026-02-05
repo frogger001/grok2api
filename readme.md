@@ -54,6 +54,40 @@
 - 每次以 **Markdown 格式返回两张图片**，共消耗 4 次额度
 - **注意：Grok 的图片直链受 403 限制，系统自动缓存图片到本地。必须正确设置 `Base Url` 以确保图片能正常显示！**
 
+#### WebSocket 直连生图（更快/更稳）
+
+新增模型：`grok-imagine-visual`（Grok Imagine Visual / WS）
+
+**特点**
+- 直接连接 `wss://grok.com/ws/imagine/listen` 绕过对话生图
+- 通常一次生成 4 张图，速度更快、稳定性更高
+- 返回 `b64_json`（Base64 JPEG），无需再抓取图片直链
+
+**使用方式**
+- 只需在后台添加 `sso` Token 即可使用（优先保证最小配置）。
+- 如遇到 403 或无法建立连接，请在「设置」里补充 `cf_clearance`（只填值，不要前缀）。
+
+**调用示例（OpenAI 兼容 /v1/chat/completions）**
+```bash
+curl https://你的服务器地址/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $GROK2API_API_KEY" \
+  -d '{
+    "model": "grok-imagine-visual",
+    "messages": [
+      { "role": "user", "content": "画一张赛博朋克城市夜景" }
+    ],
+    "n": 4
+  }'
+```
+
+**Cherry Studio 调用**
+1. 新增模型服务：选择 **OpenAI Compatible**。
+2. Base URL：`https://你的域名/v1`。
+3. API Key：填后台创建的 Key。
+4. 模型名：`grok-imagine-visual`。
+5. 直接输入提示词即可生成图片（返回 Base64）。
+
 ### 视频生成功能
 - 选择 `grok-imagine-0.9` 模型，传入图片和提示词即可（方式和 OpenAI 的图片分析调用格式一致）
 - 返回格式为 `<video src="{full_video_url}" controls="controls"></video>`
